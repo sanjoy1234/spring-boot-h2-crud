@@ -1,0 +1,11 @@
+{
+  "application": {
+    "name": "spring-boot-h2-crud",
+    "uris": [
+      "spring-crud.apps.internal"
+    ],
+    "application_id": "mock-spring-boot-h2-crud"
+  },
+  "cf_api": "https://api.mock.pcf.internal",
+  "redis": []
+}

@@ -1,0 +1,9 @@
+applications:
+- name: spring-boot-h2-crud
+  memory: 768M
+  instances: 2
+  buildpacks:
+  - java_buildpack
+  routes:
+  - route: spring-crud.apps.internal
+  services: ['h2-volume']

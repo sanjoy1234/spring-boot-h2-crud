@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spring-boot-h2-crud-config
+data:
+  APP_ID: spring-boot-h2-crud
+  PORT: "8080"
