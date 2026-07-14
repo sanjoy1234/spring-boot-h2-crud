@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {app: spring-boot-h2-crud}
+  template:
+    metadata:
+      labels: {app: spring-boot-h2-crud}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+      - name: app
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef: {name: spring-boot-h2-crud-config}
+        - secretRef: {name: spring-boot-h2-crud-services}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        resources: {{- toYaml .Values.resources | nindent 10 }}
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          initialDelaySeconds: 10
+        livenessProbe:
+          tcpSocket: {port: 8080}
+          initialDelaySeconds: 30
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  type: ClusterIP
+  selector: {app: spring-boot-h2-crud}
+  ports:
+  - name: http
+    port: {{ .Values.service.port }}
+    targetPort: {{ .Values.service.targetPort }}

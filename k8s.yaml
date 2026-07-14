@@ -1,0 +1,164 @@
+---
+# Source: spring-boot-h2-crud/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  podSelector:
+    matchLabels: {app: spring-boot-h2-crud}
+  policyTypes: [Ingress, Egress]
+  ingress:
+  - ports:
+    - protocol: TCP
+      port: 8080
+  egress:
+  - to:
+    - namespaceSelector: {}
+---
+# Source: spring-boot-h2-crud/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: {app: spring-boot-h2-crud}
+---
+# Source: spring-boot-h2-crud/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: spring-boot-h2-crud-services
+type: Opaque
+stringData:
+  SERVICE_BINDINGS: "{}"
+---
+# Source: spring-boot-h2-crud/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spring-boot-h2-crud-config
+data:
+  APP_ID: spring-boot-h2-crud
+  PORT: "8080"
+---
+# Source: spring-boot-h2-crud/templates/deployment.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  type: ClusterIP
+  selector: {app: spring-boot-h2-crud}
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+---
+# Source: spring-boot-h2-crud/templates/redis.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  type: ClusterIP
+  selector: {app: redis}
+  ports:
+  - port: 6379
+    targetPort: 6379
+---
+# Source: spring-boot-h2-crud/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: spring-boot-h2-crud}
+  template:
+    metadata:
+      labels: {app: spring-boot-h2-crud}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+      - name: app
+        image: us-central1-docker.pkg.dev/MigrationFactory-migration-demo/MigrationFactory/spring-boot-h2-crud:phase-b
+        ports:
+        - name: http
+          containerPort: 8080
+        envFrom:
+        - configMapRef: {name: spring-boot-h2-crud-config}
+        - secretRef: {name: spring-boot-h2-crud-services}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities: {drop: [ALL]}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        resources:
+          limits:
+            cpu: 300m
+            memory: 384Mi
+          requests:
+            cpu: 25m
+            memory: 64Mi
+        readinessProbe:
+          tcpSocket: {port: 8080}
+          initialDelaySeconds: 10
+        livenessProbe:
+          tcpSocket: {port: 8080}
+          initialDelaySeconds: 30
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+# Source: spring-boot-h2-crud/templates/redis.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: redis}
+  template:
+    metadata:
+      labels: {app: redis}
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 100m, memory: 96Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities: {drop: [ALL]}
+---
+# Source: spring-boot-h2-crud/templates/hpa.yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: spring-boot-h2-crud
+spec:
+  minReplicas: 1
+  maxReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: spring-boot-h2-crud
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75

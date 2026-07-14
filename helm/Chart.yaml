@@ -1,0 +1,4 @@
+apiVersion: v2
+name: spring-boot-h2-crud
+version: 0.2.0
+appVersion: phase-b
